@@ -4,7 +4,8 @@
 -include_lib("emysql/include/emysql.hrl").
 
 -export([
-    start_link/5
+    start_link/5,
+    create/5
   ]).
 
 -export([
@@ -17,7 +18,8 @@
   ]).
 
 -export([
-    ensure_database/1
+    version/1,
+    update_version/2
   ]).
 
 -record(state, {
@@ -30,6 +32,8 @@
     pool :: atom()
   }).
 
+-type version() :: string().
+
 -spec start_link(User, Password, Host, Port, Database) -> {ok, Pid} when
   User :: string(),
   Password :: string(),
@@ -38,6 +42,17 @@
   Database :: string(),
   Pid :: pid().
 start_link(User, Password, Host, Port, Database) ->
+  gen_server:start_link(?MODULE, [User, Password, Host, Port, Database], []).
+
+
+-spec create(User, Password, Host, Port, Database) -> {ok, Pid} when
+  User :: string(),
+  Password :: string(),
+  Host :: string(),
+  Port :: integer(),
+  Database :: string(),
+  Pid :: pid().
+create(User, Password, Host, Port, Database) ->
   eu_mysql_adapter_sup:start_child(User, Password, Host, Port, Database).
 
 
@@ -54,8 +69,11 @@ init([User, Password, Host, Port, Database]) ->
   },
 
   case ensure_migration_table(State) of
-    ok -> {ok, State};
-    {error, _Error} -> {stop, database_creation}
+    {ok, State2} ->
+      {ok, State2};
+    {error, Error} ->
+      error_logger:error_msg("Database/migration table creation error: ~p~n", [Error]),
+      {stop, database_creation}
   end.
 
 
@@ -72,14 +90,15 @@ ensure_migration_table(
     database = Database
   } = State
 ) ->
+  ensure_database(State),
   Pool = mysql_pool_name(State),
   emysql:add_pool(Pool, 1,
     User, Password, Host, Port, Database, utf8),
 
   State2 = State#state{pool = Pool},
-
   case create_migration_table(State2) of
-    #result_packet{} -> State2;
+    ok ->
+      {ok, State2};
     Error -> {error, Error}
   end.
 
@@ -88,12 +107,11 @@ ensure_migration_table(
   State :: #state{},
   Error :: #error_packet{}.
 create_migration_table(#state{pool = Pool} = State) ->
-  ensure_database(State),
   Sql =
     <<"create table if not exists migrations (
     migration varchar(255) primary key)">>,
   case emysql:execute(Pool, Sql) of
-    #result_packet{} -> ok;
+    #ok_packet{} -> ok;
     Error -> {error, Error}
   end.
 
@@ -139,6 +157,30 @@ mysql_pool_name(#state{database = Database}) ->
   list_to_atom(lists:concat(["eu_mysql_", Database, "_pool"])).
 
 
+-spec version(Pid) -> Version when
+  Pid :: atom(),
+  Version :: version().
+version(Pid) ->
+  gen_server:call(Pid, version).
+
+
+-spec update_version(Pid, Version) -> ok when
+  Pid :: pid(),
+  Version :: version().
+update_version(Pid, Version) ->
+  gen_server:call(Pid, {update_version, Version}).
+
+
+handle_call(version, _From, #state{pool = Pool} = State) ->
+  #result_packet{rows = Rows} = emysql:execute(Pool, migration_version, []),
+
+  case Rows of
+    [[Version]] -> {reply, binary_to_list(Version), State};
+    [] -> {reply, "", State}
+  end;
+handle_call({update_version, Version}, _From, #state{pool = Pool} = State) ->
+  emysql:execute(Pool, update_version, [Version]),
+  {reply, ok, State};
 handle_call(_Data, _From, State) ->
   {reply, ok, State}.
 
