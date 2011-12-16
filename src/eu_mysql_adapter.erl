@@ -179,7 +179,7 @@ handle_call(version, _From, #state{pool = Pool} = State) ->
     [] -> {reply, "", State}
   end;
 handle_call({update_version, Version}, _From, #state{pool = Pool} = State) ->
-  emysql:execute(Pool, update_version, [Version]),
+  emysql:execute(Pool, migration_update_version, [Version]),
   {reply, ok, State};
 handle_call(_Data, _From, State) ->
   {reply, ok, State}.
