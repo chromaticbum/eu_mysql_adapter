@@ -2,6 +2,7 @@
 -behavior(gen_server).
 
 -include_lib("emysql/include/emysql.hrl").
+-include("eu_mysql_adapter.hrl").
 
 -export([
     start_link/5,
@@ -32,24 +33,6 @@
 
     pool :: atom()
   }).
-
--type version() :: string().
-
--type column_name() :: atom().
--type column_type() ::
-  int |
-  float |
-  string |
-  timestamp |
-  datetime.
--type column_option() ::
-  primary.
-
--type column() ::
-  {column_name(), column_type()} |
-  {column_name(), column_type(), [column_option()]}.
-
--type columns() :: [column()].
 
 -spec start_link(User, Password, Host, Port, Database) -> {ok, Pid} when
   User :: string(),
@@ -194,6 +177,13 @@ update_version(Pid, Version) ->
 create_table(Pid, Table, Columns) ->
   gen_server:call(Pid, {create_table, Table, Columns}).
 
+-spec add_column(Pid, Table, Column) -> ok when
+  Pid :: pid(),
+  Table :: atom(),
+  Column :: column().
+add_column(Pid, Table, Column) ->
+  gen_server:call(Pid, {add_column, Table, Column}).
+
 
 handle_call(version, _From, #state{pool = Pool} = State) ->
   #result_packet{rows = Rows} = emysql:execute(Pool, migration_version, []),
@@ -207,6 +197,9 @@ handle_call({update_version, Version}, _From, #state{pool = Pool} = State) ->
   {reply, ok, State};
 handle_call({create_table, Table, Columns}, _From, #state{pool = Pool} = State) ->
   emysql:execute(Pool, eu_mysql_util:create_table_sql(Table, Columns)),
+  {reply, ok, State};
+handle_call({add_column, Table, Column}, _From, #state{pool = Pool} = State) ->
+  emysql:execute(Pool, eu_mysql_util:add_column_sql(Table, Column)),
   {reply, ok, State};
 handle_call(_Data, _From, State) ->
   {reply, ok, State}.

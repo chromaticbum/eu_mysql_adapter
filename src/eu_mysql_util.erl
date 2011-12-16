@@ -1,11 +1,18 @@
 -module(eu_mysql_util).
 
 -include_lib("eunit/include/eunit.hrl").
+-include("eu_mysql_adapter.hrl").
 
 -export([
-    create_table_sql/2
+    create_table_sql/2,
+    add_column_sql/2
   ]).
 
+
+-spec create_table_sql(Table, Columns) -> Sql when
+  Table :: table(),
+  Columns :: columns(),
+  Sql :: sql().
 create_table_sql(Table, Columns) ->
   list_to_binary(
     lists:concat(
@@ -14,9 +21,29 @@ create_table_sql(Table, Columns) ->
     )
   ).
 
-columns_sql(Columns) ->
-  ColumnList = string:join(lists:map(fun(Column) -> column_sql(Column) end, Columns), ", ").
 
+-spec add_column_sql(Table, Column) -> Sql when
+  Table :: table(),
+  Column :: column(),
+  Sql :: sql().
+add_column_sql(Table, Column) ->
+  list_to_binary(
+    lists:concat(
+      ["alter table ", Table, " add column ", column_sql(Column), ";"]
+    )
+  ).
+
+
+-spec columns_sql(Columns) -> Sql when
+  Columns :: columns(),
+  Sql :: sql().
+columns_sql(Columns) ->
+  string:join(lists:map(fun(Column) -> column_sql(Column) end, Columns), ", ").
+
+
+-spec column_sql(Column) -> Sql when
+  Column :: column(),
+  Sql :: sql().
 column_sql({Column, Type, Options}) ->
   string:join([column_sql({Column, Type}), options_string(Options)], " ");
 column_sql({Column, string}) ->
@@ -24,12 +51,20 @@ column_sql({Column, string}) ->
 column_sql({Column, Type}) ->
   string:join([atom_to_list(Column), atom_to_list(Type)], " ").
 
+
+-spec options_string(Options) -> Sql when
+  Options :: column_options(),
+  Sql :: sql().
 options_string(Options) ->
   string:join(
     lists:map(fun(Option) -> option_string(Option) end, Options),
     " "
   ).
 
+
+-spec option_string(Option) -> Sql when
+  Option :: column_option(),
+  Sql :: sql().
 option_string(primary) ->
   "primary key auto_increment".
 
@@ -39,6 +74,11 @@ create_table_sql_test() ->
   Sql = <<"create table if not exists players (id int primary key auto_increment, name varchar(255));">>,
   ?assertEqual(Sql,
     create_table_sql(players, [{id, int, [primary]}, {name, string}])).
+
+add_column_sql_test() ->
+  Sql = <<"alter table players add column country varchar(255);">>,
+  ?assertEqual(Sql,
+    add_column_sql(players, {country, string})).
 
 columns_sql_test() ->
   ?assertEqual("id int primary key auto_increment, name varchar(255)",
