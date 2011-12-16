@@ -12,7 +12,7 @@
 -spec create_table_sql(Table, Columns) -> Sql when
   Table :: table(),
   Columns :: columns(),
-  Sql :: sql().
+  Sql :: sql_binary().
 create_table_sql(Table, Columns) ->
   list_to_binary(
     lists:concat(
@@ -25,7 +25,7 @@ create_table_sql(Table, Columns) ->
 -spec add_column_sql(Table, Column) -> Sql when
   Table :: table(),
   Column :: column(),
-  Sql :: sql().
+  Sql :: sql_binary().
 add_column_sql(Table, Column) ->
   list_to_binary(
     lists:concat(

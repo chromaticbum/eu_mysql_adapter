@@ -1,4 +1,5 @@
--type sql() :: string() | binary().
+-type sql() :: string().
+-type sql_binary() :: binary().
 
 -type version() :: string().
 

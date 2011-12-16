@@ -21,7 +21,8 @@
 -export([
     version/1,
     update_version/2,
-    create_table/3
+    create_table/3,
+    add_column/3
   ]).
 
 -record(state, {
@@ -56,7 +57,7 @@ create(User, Password, Host, Port, Database) ->
   eu_mysql_adapter_sup:start_child(User, Password, Host, Port, Database).
 
 
--spec init([any()]) -> {ok, State} | {error, Reason} when
+-spec init([any()]) -> {ok, State} | {stop, Reason} when
   State :: #state{},
   Reason :: atom().
 init([User, Password, Host, Port, Database]) ->
@@ -77,7 +78,7 @@ init([User, Password, Host, Port, Database]) ->
   end.
 
 
--spec ensure_migration_table(State) -> State2 | {error, Error} when
+-spec ensure_migration_table(State) -> {ok, State2} | {error, Error} when
   State :: #state{},
   State2 :: #state{},
   Error :: #error_packet{}.
@@ -99,7 +100,7 @@ ensure_migration_table(
   case create_migration_table(State2) of
     ok ->
       {ok, State2};
-    Error -> {error, Error}
+    {error, Error} -> {error, Error}
   end.
 
 
