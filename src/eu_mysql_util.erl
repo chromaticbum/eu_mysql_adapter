@@ -6,7 +6,8 @@
 -export([
     create_table_sql/2,
     drop_table_sql/1,
-    add_column_sql/2
+    add_column_sql/2,
+    drop_column_sql/2
   ]).
 
 
@@ -42,6 +43,18 @@ add_column_sql(Table, Column) ->
   list_to_binary(
     lists:concat(
       ["alter table ", Table, " add column ", column_sql(Column), ";"]
+    )
+  ).
+
+
+-spec drop_column_sql(Table, Column) -> Sql when
+  Table :: table(),
+  Column :: column_name(),
+  Sql :: sql_binary().
+drop_column_sql(Table, Column) ->
+  list_to_binary(
+    lists:concat(
+      ["alter table ", Table, " drop column ", Column, ";"]
     )
   ).
 

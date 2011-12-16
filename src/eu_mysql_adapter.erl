@@ -23,7 +23,8 @@
     update_version/2,
     create_table/3,
     drop_table/2,
-    add_column/3
+    add_column/3,
+    drop_column/3
   ]).
 
 -record(state, {
@@ -179,6 +180,14 @@ update_version(Pid, Version) ->
 create_table(Pid, Table, Columns) ->
   gen_server:call(Pid, {create_table, Table, Columns}).
 
+
+-spec drop_table(Pid, Table) -> ok when
+  Pid :: pid(),
+  Table :: table().
+drop_table(Pid, Table) ->
+  gen_server:call(Pid, {drop_table, Table}).
+
+
 -spec add_column(Pid, Table, Column) -> ok when
   Pid :: pid(),
   Table :: atom(),
@@ -187,11 +196,12 @@ add_column(Pid, Table, Column) ->
   gen_server:call(Pid, {add_column, Table, Column}).
 
 
--spec drop_table(Pid, Table) -> ok when
+-spec drop_column(Pid, Table, Column) -> ok when
   Pid :: pid(),
-  Table :: table().
-drop_table(Pid, Table) ->
-  gen_server:call(Pid, {drop_table, Table}).
+  Table :: table(),
+  Column :: column_name().
+drop_column(Pid, Table, Column) ->
+  gen_server:call(Pid, {drop_column, Table, Column}).
 
 
 handle_call(version, _From, #state{pool = Pool} = State) ->
@@ -216,6 +226,10 @@ handle_call({drop_table, Table}, _From, #state{pool = Pool} = State) ->
 
 handle_call({add_column, Table, Column}, _From, #state{pool = Pool} = State) ->
   emysql:execute(Pool, eu_mysql_util:add_column_sql(Table, Column)),
+  {reply, ok, State};
+
+handle_call({drop_column, Table, Column}, _From, #state{pool = Pool} = State) ->
+  emysql:execute(Pool, eu_mysql_util:drop_column_sql(Table, Column)),
   {reply, ok, State};
 
 handle_call(_Data, _From, State) ->
