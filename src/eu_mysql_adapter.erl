@@ -19,7 +19,8 @@
 
 -export([
     version/1,
-    update_version/2
+    update_version/2,
+    create_table/3
   ]).
 
 -record(state, {
@@ -33,6 +34,22 @@
   }).
 
 -type version() :: string().
+
+-type column_name() :: atom().
+-type column_type() ::
+  int |
+  float |
+  string |
+  timestamp |
+  datetime.
+-type column_option() ::
+  primary.
+
+-type column() ::
+  {column_name(), column_type()} |
+  {column_name(), column_type(), [column_option()]}.
+
+-type columns() :: [column()].
 
 -spec start_link(User, Password, Host, Port, Database) -> {ok, Pid} when
   User :: string(),
@@ -106,7 +123,7 @@ ensure_migration_table(
 -spec create_migration_table(State) -> ok | {error, Error} when
   State :: #state{},
   Error :: #error_packet{}.
-create_migration_table(#state{pool = Pool} = State) ->
+create_migration_table(#state{pool = Pool}) ->
   Sql =
     <<"create table if not exists migrations (
     migration varchar(255) primary key)">>,
@@ -170,6 +187,13 @@ version(Pid) ->
 update_version(Pid, Version) ->
   gen_server:call(Pid, {update_version, Version}).
 
+-spec create_table(Pid, Table, Columns) -> ok when
+  Pid :: pid(),
+  Table :: atom(),
+  Columns :: columns().
+create_table(Pid, Table, Columns) ->
+  gen_server:call(Pid, {create_table, Table, Columns}).
+
 
 handle_call(version, _From, #state{pool = Pool} = State) ->
   #result_packet{rows = Rows} = emysql:execute(Pool, migration_version, []),
@@ -180,6 +204,9 @@ handle_call(version, _From, #state{pool = Pool} = State) ->
   end;
 handle_call({update_version, Version}, _From, #state{pool = Pool} = State) ->
   emysql:execute(Pool, migration_update_version, [Version]),
+  {reply, ok, State};
+handle_call({create_table, Table, Columns}, _From, #state{pool = Pool} = State) ->
+  emysql:execute(Pool, eu_mysql_util:create_table_sql(Table, Columns)),
   {reply, ok, State};
 handle_call(_Data, _From, State) ->
   {reply, ok, State}.
