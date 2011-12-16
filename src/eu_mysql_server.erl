@@ -1,12 +1,12 @@
--module(eu_mysql_adapter).
+-module(eu_mysql_server).
 -behavior(gen_server).
 
 -include_lib("emysql/include/emysql.hrl").
 -include("eu_mysql_adapter.hrl").
 
 -export([
-    start_link/5,
-    create/5
+    start_link/1,
+    create/1
   ]).
 
 -export([
@@ -27,48 +27,36 @@
     drop_column/3
   ]).
 
--record(state, {
-    user = "" :: string(),
-    password = "" :: string(),
-    host = "" :: string(),
-    port = -1 :: integer(),
-    database = "" :: string(),
+% TODO: get rid
+-export([
+    db_info1/5
+  ]).
 
+-record(state, {
+    db_info :: #db_info{},
     pool :: atom()
   }).
 
--spec start_link(User, Password, Host, Port, Database) -> {ok, Pid} when
-  User :: string(),
-  Password :: string(),
-  Host :: string(),
-  Port :: integer(),
-  Database :: string(),
+-spec start_link(DbInfo) -> {ok, Pid} when
+  DbInfo :: #db_info{},
   Pid :: pid().
-start_link(User, Password, Host, Port, Database) ->
-  gen_server:start_link(?MODULE, [User, Password, Host, Port, Database], []).
+start_link(DbInfo) ->
+  gen_server:start_link(?MODULE, [DbInfo], []).
 
 
--spec create(User, Password, Host, Port, Database) -> {ok, Pid} when
-  User :: string(),
-  Password :: string(),
-  Host :: string(),
-  Port :: integer(),
-  Database :: string(),
+-spec create(DbInfo) -> {ok, Pid} when
+  DbInfo ::#db_info{},
   Pid :: pid().
-create(User, Password, Host, Port, Database) ->
-  eu_mysql_adapter_sup:start_child(User, Password, Host, Port, Database).
+create(DbInfo) ->
+  eu_mysql_adapter_sup:start_child(DbInfo).
 
 
 -spec init([any()]) -> {ok, State} | {stop, Reason} when
   State :: #state{},
   Reason :: atom().
-init([User, Password, Host, Port, Database]) ->
+init([DbInfo]) ->
   State = #state{
-    user = User,
-    password = Password,
-    host = Host,
-    port = Port,
-    database = Database
+    db_info = DbInfo
   },
 
   case ensure_migration_table(State) of
@@ -86,11 +74,13 @@ init([User, Password, Host, Port, Database]) ->
   Error :: #error_packet{}.
 ensure_migration_table(
   #state{
-    user = User,
-    password = Password,
-    host = Host,
-    port = Port,
-    database = Database
+    db_info = #db_info{
+      user = User,
+      password = Password,
+      host = Host,
+      port = Port,
+      database = Database
+    }
   } = State
 ) ->
   ensure_database(State),
@@ -124,10 +114,12 @@ create_migration_table(#state{pool = Pool}) ->
   Error :: #error_packet{}.
 ensure_database(
   #state{
-    user = User,
-    password = Password,
-    host = Host,
-    port = Port
+    db_info = #db_info{
+      user = User,
+      password = Password,
+      host = Host,
+      port = Port
+    }
   } = State
 ) ->
   Pool = mysql_pool_name(State),
@@ -143,7 +135,9 @@ ensure_database(
   Pool :: atom(),
   Error :: #error_packet{}.
 create_database(
-  #state{database = Database},
+  #state{
+    db_info = #db_info{database = Database}
+  },
   Pool
 ) ->
   Sql = list_to_binary(lists:concat(["create schema if not exists ", Database])),
@@ -156,7 +150,11 @@ create_database(
 -spec mysql_pool_name(State) -> Name when
   State :: #state{},
   Name :: atom.
-mysql_pool_name(#state{database = Database}) ->
+mysql_pool_name(
+  #state{
+    db_info = #db_info{database = Database}
+  }
+) ->
   list_to_atom(lists:concat(["eu_mysql_", Database, "_pool"])).
 
 
@@ -247,4 +245,14 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
+% TESTS
 
+db_info1(User, Password, Host, Port, Database) ->
+  #db_info{
+    adapter = mysql,
+    user = User,
+    password = Password,
+    host = Host,
+    port = Port,
+    database = Database
+  }.

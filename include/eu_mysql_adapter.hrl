@@ -22,3 +22,12 @@
 
 -type columns() :: [column()].
 
+% records
+-record(db_info, {
+    adapter :: atom(),
+    user = "" :: string(),
+    password = "" :: string(),
+    host = "" :: string(),
+    port = 0 :: integer(),
+    database = "" :: string()
+  }).
