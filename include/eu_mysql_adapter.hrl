@@ -31,3 +31,7 @@
     port = 0 :: integer(),
     database = "" :: string()
   }).
+
+-record(eu_mysql, {
+    pid :: pid()
+  }).

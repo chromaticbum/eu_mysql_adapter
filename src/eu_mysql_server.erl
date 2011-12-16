@@ -27,11 +27,6 @@
     drop_column/3
   ]).
 
-% TODO: get rid
--export([
-    db_info1/5
-  ]).
-
 -record(state, {
     db_info :: #db_info{},
     pool :: atom()
@@ -245,14 +240,3 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
-% TESTS
-
-db_info1(User, Password, Host, Port, Database) ->
-  #db_info{
-    adapter = mysql,
-    user = User,
-    password = Password,
-    host = Host,
-    port = Port,
-    database = Database
-  }.
