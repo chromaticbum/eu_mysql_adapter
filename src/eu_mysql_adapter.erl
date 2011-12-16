@@ -22,6 +22,7 @@
     version/1,
     update_version/2,
     create_table/3,
+    drop_table/2,
     add_column/3
   ]).
 
@@ -186,6 +187,13 @@ add_column(Pid, Table, Column) ->
   gen_server:call(Pid, {add_column, Table, Column}).
 
 
+-spec drop_table(Pid, Table) -> ok when
+  Pid :: pid(),
+  Table :: table().
+drop_table(Pid, Table) ->
+  gen_server:call(Pid, {drop_table, Table}).
+
+
 handle_call(version, _From, #state{pool = Pool} = State) ->
   #result_packet{rows = Rows} = emysql:execute(Pool, migration_version, []),
 
@@ -193,15 +201,23 @@ handle_call(version, _From, #state{pool = Pool} = State) ->
     [[Version]] -> {reply, binary_to_list(Version), State};
     [] -> {reply, "", State}
   end;
+
 handle_call({update_version, Version}, _From, #state{pool = Pool} = State) ->
   emysql:execute(Pool, migration_update_version, [Version]),
   {reply, ok, State};
+
 handle_call({create_table, Table, Columns}, _From, #state{pool = Pool} = State) ->
   emysql:execute(Pool, eu_mysql_util:create_table_sql(Table, Columns)),
   {reply, ok, State};
+
+handle_call({drop_table, Table}, _From, #state{pool = Pool} = State) ->
+  emysql:execute(Pool, eu_mysql_util:drop_table_sql(Table)),
+  {reply, ok, State};
+
 handle_call({add_column, Table, Column}, _From, #state{pool = Pool} = State) ->
   emysql:execute(Pool, eu_mysql_util:add_column_sql(Table, Column)),
   {reply, ok, State};
+
 handle_call(_Data, _From, State) ->
   {reply, ok, State}.
 

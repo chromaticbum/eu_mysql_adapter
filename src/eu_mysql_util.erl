@@ -5,6 +5,7 @@
 
 -export([
     create_table_sql/2,
+    drop_table_sql/1,
     add_column_sql/2
   ]).
 
@@ -18,6 +19,17 @@ create_table_sql(Table, Columns) ->
     lists:concat(
       ["create table if not exists ", Table, " (",
         columns_sql(Columns), ");"]
+    )
+  ).
+
+
+-spec drop_table_sql(Table) -> Sql when
+  Table :: table(),
+  Sql :: sql_binary().
+drop_table_sql(Table) ->
+  list_to_binary(
+    lists:concat(
+      ["drop table if exists ", Table, ";"]
     )
   ).
 
