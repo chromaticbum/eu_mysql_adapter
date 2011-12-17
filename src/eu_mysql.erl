@@ -15,14 +15,13 @@
   ]).
 
 
--spec create(User, Password, Host, Port, Database) -> {ok, Adapter} | {error, Reason} when
+-spec create(User, Password, Host, Port, Database) -> Adapter when
   User :: string(),
   Password :: string(),
   Host :: string(),
   Port :: integer(),
   Database :: string(),
-  Adapter :: #eu_mysql{},
-  Reason :: atom().
+  Adapter :: #eu_mysql{}.
 create(User, Password, Host, Port, Database) ->
   DbInfo = #db_info{
     adapter = mysql,
@@ -35,15 +34,12 @@ create(User, Password, Host, Port, Database) ->
   create(DbInfo).
 
 
--spec create(DbInfo) -> {ok, Adapter} | {error, Reason} when
+-spec create(DbInfo) -> Adapter when
   DbInfo :: #db_info{},
-  Adapter :: #eu_mysql{},
-  Reason :: atom().
+  Adapter :: #eu_mysql{}.
 create(DbInfo) ->
-  case eu_mysql_server:create(DbInfo) of
-    {ok, Pid} -> #eu_mysql{pid = Pid};
-    {error, Reason} -> {error, Reason}
-  end.
+  {ok, Pid} = eu_mysql_server:create(DbInfo),
+  #eu_mysql{pid = Pid}.
 
 
 -spec version(Adapter) -> Version when
