@@ -22,7 +22,7 @@
 
 -export([
     version/1,
-    update_version/2,
+    store_instruction/3,
     create_table/3,
     drop_table/2,
     add_column/3,
@@ -105,7 +105,14 @@ ensure_migration_table(
 create_migration_table(#state{pool = Pool}) ->
   Sql =
     <<"create table if not exists migrations (
-    migration varchar(255) primary key)">>,
+    version varchar(255) not null,
+    file varchar(255) not null,
+    created_at timestamp not null default current_timestamp,
+    `table` varchar(255) not null,
+    `column` varchar(255),
+    `instruction` text not null,
+    primary key (version, file, created_at)
+  );">>,
   case emysql:execute(Pool, Sql) of
     #ok_packet{} -> ok;
     Error -> {error, Error}
@@ -168,11 +175,12 @@ version(Pid) ->
   gen_server:call(Pid, version).
 
 
--spec update_version(Pid, Version) -> ok when
+-spec store_instruction(Pid, Migration, Instruction) -> ok when
   Pid :: pid(),
-  Version :: version().
-update_version(Pid, Version) ->
-  gen_server:call(Pid, {update_version, Version}).
+  Migration :: migration(),
+  Instruction :: migration_instruction().
+store_instruction(Pid, Migration, Instruction) ->
+  gen_server:call(Pid, {store_instruction, Migration, Instruction}).
 
 -spec create_table(Pid, Table, Columns) -> ok when
   Pid :: pid(),
@@ -213,8 +221,13 @@ handle_call(version, _From, #state{pool = Pool} = State) ->
     [] -> {reply, "", State}
   end;
 
-handle_call({update_version, Version}, _From, #state{pool = Pool} = State) ->
-  emysql:execute(Pool, migration_update_version, [Version]),
+handle_call({store_instruction, Migration, Instruction}, _From, #state{pool = Pool} = State) ->
+  #migration{
+    version = Version,
+    file = File
+  } = Migration,
+  {Table, Column, Instruction2} = extract_instruction(Instruction),
+  emysql:execute(Pool, store_instruction, [Version, File, Table, Column, Instruction2]),
   {reply, ok, State};
 
 handle_call({create_table, Table, Columns}, _From, #state{pool = Pool} = State) ->
@@ -239,6 +252,23 @@ handle_call(stop, _From, #state{pool = Pool} = State) ->
 
 handle_call(_Data, _From, State) ->
   {reply, ok, State}.
+
+-spec extract_instruction(Instruction) -> {string(), string(), string()} when
+  Instruction :: migration_instruction().
+extract_instruction({create_table, Table, _Columns} = Instruction) ->
+  {atom_to_list(Table), undefined, convert_term(Instruction)};
+extract_instruction({drop_table, Table} = Instruction) ->
+  {atom_to_list(Table), undefined, convert_term(Instruction)};
+extract_instruction({add_column, Table, Column} = Instruction) ->
+  {atom_to_list(Table), atom_to_list(element(1, Column)), convert_term(Instruction)};
+extract_instruction({drop_column, Table, Column} = Instruction) ->
+  {atom_to_list(Table), atom_to_list(Column), convert_term(Instruction)}.
+
+
+-spec convert_term(any()) -> string().
+convert_term(Term) ->
+  lists:flatten(io_lib:format("~p", [Term])).
+
 
 handle_cast(_Data, State) ->
   {noreply, State}.

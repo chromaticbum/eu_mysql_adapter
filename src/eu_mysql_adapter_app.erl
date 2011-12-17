@@ -14,8 +14,8 @@ start(_Type, _Args) ->
 
 -spec prepare_statements() -> ok.
 prepare_statements() ->
-  emysql:prepare(migration_version, <<"select migration from migrations order by migration desc limit 1;">>),
-  emysql:prepare(migration_update_version, <<"insert into migrations(migration) values(?);">>),
+  emysql:prepare(migration_version, <<"select version from migrations order by version desc limit 1;">>),
+  emysql:prepare(store_instruction, <<"insert into migrations(version, file, `table`, `column`, instruction) values(?, ?, ?, ?, ?);">>),
 
   ok.
 
