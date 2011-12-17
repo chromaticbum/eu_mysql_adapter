@@ -92,6 +92,12 @@ options_string(Options) ->
   Option :: column_option(),
   Sql :: sql().
 option_string(primary) ->
+  "primary key";
+option_string(unique) ->
+  "unique key";
+option_string(auto_increment) ->
+  "auto_increment";
+option_string(primary_id) ->
   "primary key auto_increment".
 
 % TESTS
@@ -99,23 +105,29 @@ option_string(primary) ->
 create_table_sql_test() ->
   Sql = <<"create table if not exists players (id int primary key auto_increment, name varchar(255));">>,
   ?assertEqual(Sql,
-    create_table_sql(players, [{id, int, [primary]}, {name, string}])).
+    create_table_sql(players, [{id, int, [primary_id]}, {name, string}])).
 
 add_column_sql_test() ->
-  Sql = <<"alter table players add column country varchar(255);">>,
+  Sql = <<"alter table players add column country varchar(255) unique key;">>,
   ?assertEqual(Sql,
-    add_column_sql(players, {country, string})).
+    add_column_sql(players, {country, string, [unique]})).
 
 columns_sql_test() ->
   ?assertEqual("id int primary key auto_increment, name varchar(255)",
-    columns_sql([{id, int, [primary]}, {name, string}])).
+    columns_sql([{id, int, [primary_id]}, {name, string}])).
 
 option_string_test() ->
+  ?assertEqual("primary key",
+    option_string(primary)),
+  ?assertEqual("unique key",
+    option_string(unique)),
+  ?assertEqual("auto_increment",
+    option_string(auto_increment)),
   ?assertEqual("primary key auto_increment",
-    option_string(primary)).
+    option_string(primary_id)).
 
 column_sql_test() ->
   ?assertEqual("id int primary key auto_increment",
-    column_sql({id, int, [primary]})),
+    column_sql({id, int, [primary_id]})),
   ?assertEqual("name varchar(255)",
     column_sql({name, string})).
