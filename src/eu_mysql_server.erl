@@ -28,7 +28,9 @@
     create_table/3,
     drop_table/2,
     add_column/3,
-    drop_column/3
+    drop_column/3,
+
+    restore_table_instructions/3
   ]).
 
 -record(state, {
@@ -111,7 +113,7 @@ create_migration_table(#state{pool = Pool}) ->
     file varchar(255) not null,
     created_at timestamp not null default current_timestamp,
     `table` varchar(255) not null,
-    `column` varchar(255),
+    `column` varchar(255) not null default '',
     `instruction` text not null,
     primary key (version, file, created_at)
   );">>,
@@ -224,6 +226,14 @@ drop_column(Pid, Table, Column) ->
   gen_server:call(Pid, {drop_column, Table, Column}).
 
 
+-spec restore_table_instructions(Pid, Version, Table) -> [term()] when
+  Pid :: pid(),
+  Version :: version(),
+  Table :: table().
+restore_table_instructions(Pid, Version, Table) ->
+  gen_server:call(Pid, {restore_table_instructions, Version, Table}).
+
+
 handle_call(version, _From, #state{pool = Pool} = State) ->
   #result_packet{rows = Rows} = emysql:execute(Pool, migration_version, []),
 
@@ -238,7 +248,7 @@ handle_call({store_instruction, Migration, Instruction}, _From, #state{pool = Po
     file = File
   } = Migration,
   {Table, Column, Instruction2} = extract_instruction(Instruction),
-  emysql:execute(Pool, store_instruction, [Version, File, Table, Column, Instruction2]),
+  emysql:execute(Pool, store_instruction, [Version, File, Table, Column, lists:concat([Instruction2, "."])]),
   {reply, ok, State};
 
 handle_call({delete_instruction, Migration, Instruction}, _From, #state{pool = Pool} = State) ->
@@ -246,7 +256,7 @@ handle_call({delete_instruction, Migration, Instruction}, _From, #state{pool = P
     version = Version,
     file = File
   } = Migration,
-  {Table, Column} = extract_instruction(Instruction),
+  {Table, Column, _Instruction} = extract_instruction(Instruction),
   emysql:execute(Pool, delete_instruction, [Version, File, Table, Column]),
   {reply, ok, State};
 
@@ -266,6 +276,10 @@ handle_call({drop_column, Table, Column}, _From, #state{pool = Pool} = State) ->
   emysql:execute(Pool, eu_mysql_util:drop_column_sql(Table, Column)),
   {reply, ok, State};
 
+handle_call({restore_table_instructions, Version, Table}, _From, #state{pool = Pool} = State) ->
+  #result_packet{rows = Rows} = emysql:execute(Pool, restore_table_instructions, [Version, Table]),
+  {reply, encode_instruction_rows(Rows), State};
+
 handle_call(stop, _From, #state{pool = Pool} = State) ->
   emysql:remove_pool(Pool),
   {stop, normal, ok, State};
@@ -274,12 +288,22 @@ handle_call(_Data, _From, State) ->
   {reply, ok, State}.
 
 
--spec extract_instruction(Instruction) -> {string(), string() | undefined, string()} when
+encode_instruction_rows(Rows) ->
+  lists:map(fun([Row]) -> encode_term(Row) end, Rows).
+
+
+encode_term(Term) ->
+  {ok, Tokens, _} = erl_scan:string(Term),
+  {ok, Term} = erl_parse:parse_term(Tokens),
+  Term.
+
+
+-spec extract_instruction(Instruction) -> {string(), string(), string()} when
   Instruction :: migration_instruction().
 extract_instruction({create_table, Table, _Columns} = Instruction) ->
-  {atom_to_list(Table), undefined, convert_term(Instruction)};
+  {atom_to_list(Table), "", convert_term(Instruction)};
 extract_instruction({drop_table, Table} = Instruction) ->
-  {atom_to_list(Table), undefined, convert_term(Instruction)};
+  {atom_to_list(Table), "", convert_term(Instruction)};
 extract_instruction({add_column, Table, Column} = Instruction) ->
   {atom_to_list(Table), atom_to_list(element(1, Column)), convert_term(Instruction)};
 extract_instruction({drop_column, Table, Column} = Instruction) ->
