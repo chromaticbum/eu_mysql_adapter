@@ -19,7 +19,7 @@
 create_table_sql(Table, Columns) ->
   list_to_binary(
     lists:concat(
-      ["create table if not exists ", Table, " (",
+      ["create table ", Table, " (",
         columns_sql(Columns), ");"]
     )
   ).
@@ -31,7 +31,7 @@ create_table_sql(Table, Columns) ->
 drop_table_sql(Table) ->
   list_to_binary(
     lists:concat(
-      ["drop table if exists ", Table, ";"]
+      ["drop table ", Table, ";"]
     )
   ).
 
@@ -103,7 +103,7 @@ option_string(primary_id) ->
 % TESTS
 
 create_table_sql_test() ->
-  Sql = <<"create table if not exists players (id int primary key auto_increment, name varchar(255));">>,
+  Sql = <<"create table players (id int primary key auto_increment, name varchar(255));">>,
   ?assertEqual(Sql,
     create_table_sql(players, [{id, int, [primary_id]}, {name, string}])).
 
