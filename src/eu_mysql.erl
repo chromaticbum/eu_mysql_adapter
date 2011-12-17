@@ -6,6 +6,7 @@
 % eu_mysql_adapter API exports
 -export([
     create/1, create/5,
+    stop/1,
     version/1,
     update_version/2,
     create_table/3,
@@ -40,6 +41,12 @@ create(User, Password, Host, Port, Database) ->
 create(DbInfo) ->
   {ok, Pid} = eu_mysql_server:create(DbInfo),
   #eu_mysql{pid = Pid}.
+
+
+-spec stop(Adapter) -> ok when
+  Adapter :: #eu_mysql{}.
+stop(#eu_mysql{pid = Pid}) ->
+  eu_mysql_server:stop(Pid).
 
 
 -spec version(Adapter) -> Version when

@@ -7,7 +7,8 @@
 
 -export([
     start_link/1,
-    create/1
+    create/1,
+    stop/1
   ]).
 
 -export([
@@ -45,6 +46,12 @@ start_link(DbInfo) ->
   Pid :: pid().
 create(DbInfo) ->
   eu_mysql_adapter_sup:start_child(DbInfo).
+
+
+-spec stop(Pid) -> ok when
+  Pid :: pid().
+stop(Pid) ->
+  gen_server:call(Pid, stop).
 
 
 -spec init([any()]) -> {ok, State} | {stop, Reason} when
@@ -225,6 +232,10 @@ handle_call({add_column, Table, Column}, _From, #state{pool = Pool} = State) ->
 handle_call({drop_column, Table, Column}, _From, #state{pool = Pool} = State) ->
   emysql:execute(Pool, eu_mysql_util:drop_column_sql(Table, Column)),
   {reply, ok, State};
+
+handle_call(stop, _From, #state{pool = Pool} = State) ->
+  emysql:remove_pool(Pool),
+  {stop, normal, ok, State};
 
 handle_call(_Data, _From, State) ->
   {reply, ok, State}.
