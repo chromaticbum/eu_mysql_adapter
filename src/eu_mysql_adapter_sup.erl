@@ -1,7 +1,7 @@
 -module(eu_mysql_adapter_sup).
 -behavior(supervisor).
 
--include("eu_mysql_adapter.hrl").
+-include_lib("eulogy/include/eulogy.hrl").
 
 -export([
     start_link/0,

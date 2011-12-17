@@ -1,6 +1,7 @@
 -module(eu_mysql_util).
 
 -include_lib("eunit/include/eunit.hrl").
+-include_lib("eulogy/include/eulogy.hrl").
 -include("eu_mysql_adapter.hrl").
 
 -export([

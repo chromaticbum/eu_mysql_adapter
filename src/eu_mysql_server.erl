@@ -2,6 +2,7 @@
 -behavior(gen_server).
 
 -include_lib("emysql/include/emysql.hrl").
+-include_lib("eulogy/include/eulogy.hrl").
 -include("eu_mysql_adapter.hrl").
 
 -export([

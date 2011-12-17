@@ -1,5 +1,6 @@
 -module(eu_mysql).
 
+-include_lib("eulogy/include/eulogy.hrl").
 -include("eu_mysql_adapter.hrl").
 
 % eu_mysql_adapter API exports
