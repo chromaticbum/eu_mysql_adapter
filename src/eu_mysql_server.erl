@@ -227,7 +227,7 @@ drop_column(Pid, Table, Column) ->
   gen_server:call(Pid, {drop_column, Table, Column}).
 
 
--spec restore_table_instructions(Pid, Version, Table) -> [term()] when
+-spec restore_table_instructions(Pid, Version, Table) -> migration_instructions() when
   Pid :: pid(),
   Version :: version(),
   Table :: table().
@@ -235,7 +235,7 @@ restore_table_instructions(Pid, Version, Table) ->
   gen_server:call(Pid, {restore_table_instructions, Version, Table}).
 
 
--spec restore_column_instruction(Pid, Version, Table, Column) -> term() when
+-spec restore_column_instruction(Pid, Version, Table, Column) -> migration_instruction() when
   Pid :: pid(),
   Version :: version(),
   Table :: table(),

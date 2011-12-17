@@ -108,7 +108,7 @@ drop_column(#eu_mysql{pid = Pid}, Table, Column) ->
   eu_mysql_server:drop_column(Pid, Table, Column).
 
 
--spec restore_table_instructions(Adapter, Version, Table) -> ok when
+-spec restore_table_instructions(Adapter, Version, Table) -> migration_instructions() when
   Adapter :: #eu_mysql{},
   Version :: version(),
   Table :: table().
@@ -116,10 +116,10 @@ restore_table_instructions(#eu_mysql{pid = Pid}, Version, Table) ->
   eu_mysql_server:restore_table_instructions(Pid, Version, Table).
 
 
--spec restore_column_instruction(Adapter, Version, Table, Column) -> ok when
+-spec restore_column_instruction(Adapter, Version, Table, Column) -> migration_instruction() when
   Adapter :: #eu_mysql{},
   Version :: version(),
   Table :: table(),
-  Column :: column().
+  Column :: column_name().
 restore_column_instruction(#eu_mysql{pid = Pid}, Version, Table, Column) ->
   eu_mysql_server:restore_column_instruction(Pid, Version, Table, Column).
