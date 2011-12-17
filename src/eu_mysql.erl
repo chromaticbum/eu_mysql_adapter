@@ -54,14 +54,14 @@ stop(#eu_mysql{pid = Pid}) ->
   eu_mysql_server:stop(Pid).
 
 
--spec version(Adapter) -> Version when
+-spec version(Adapter) -> Version | {error, string()} when
   Adapter :: #eu_mysql{},
   Version :: version().
 version(#eu_mysql{pid = Pid}) ->
   eu_mysql_server:version(Pid).
 
 
--spec store_instruction(Adapter, Migration, Instruction) -> ok when
+-spec store_instruction(Adapter, Migration, Instruction) -> ok | {error, string()} when
   Adapter :: #eu_mysql{},
   Migration :: migration(),
   Instruction :: migration_instruction().
@@ -69,7 +69,7 @@ store_instruction(#eu_mysql{pid = Pid}, Migration, Instruction) ->
   eu_mysql_server:store_instruction(Pid, Migration, Instruction).
 
 
--spec delete_instruction(Adapter, Migration, Instruction) -> ok when
+-spec delete_instruction(Adapter, Migration, Instruction) -> ok | {error, string()} when
   Adapter :: #eu_mysql{},
   Migration :: migration(),
   Instruction :: migration_instruction().
@@ -77,7 +77,7 @@ delete_instruction(#eu_mysql{pid = Pid}, Migration, Instruction) ->
   eu_mysql_server:delete_instruction(Pid, Migration, Instruction).
 
 
--spec create_table(Adapter, Table, Columns) -> ok when
+-spec create_table(Adapter, Table, Columns) -> ok | {error, string()} when
   Adapter :: #eu_mysql{},
   Table :: table(),
   Columns :: columns().
@@ -85,14 +85,14 @@ create_table(#eu_mysql{pid = Pid}, Table, Columns) ->
   eu_mysql_server:create_table(Pid, Table, Columns).
 
 
--spec drop_table(Adapter, Table) -> ok when
+-spec drop_table(Adapter, Table) -> ok | {error, string()} when
   Adapter :: #eu_mysql{},
   Table :: table().
 drop_table(#eu_mysql{pid = Pid}, Table) ->
   eu_mysql_server:drop_table(Pid, Table).
 
 
--spec add_column(Adapter, Table, Column) -> ok when
+-spec add_column(Adapter, Table, Column) -> ok | {error, string()} when
   Adapter :: #eu_mysql{},
   Table :: table(),
   Column :: column().
@@ -100,7 +100,7 @@ add_column(#eu_mysql{pid = Pid}, Table, Column) ->
   eu_mysql_server:add_column(Pid, Table, Column).
 
 
--spec drop_column(Adapter, Table, Column) -> ok when
+-spec drop_column(Adapter, Table, Column) -> ok | {error, string()} when
   Adapter :: #eu_mysql{},
   Table :: table(),
   Column :: column_name().
@@ -108,7 +108,7 @@ drop_column(#eu_mysql{pid = Pid}, Table, Column) ->
   eu_mysql_server:drop_column(Pid, Table, Column).
 
 
--spec restore_table_instructions(Adapter, Version, Table) -> migration_instructions() when
+-spec restore_table_instructions(Adapter, Version, Table) -> migration_instructions() | {error, string()} when
   Adapter :: #eu_mysql{},
   Version :: version(),
   Table :: table().
@@ -116,7 +116,7 @@ restore_table_instructions(#eu_mysql{pid = Pid}, Version, Table) ->
   eu_mysql_server:restore_table_instructions(Pid, Version, Table).
 
 
--spec restore_column_instruction(Adapter, Version, Table, Column) -> migration_instruction() when
+-spec restore_column_instruction(Adapter, Version, Table, Column) -> migration_instruction() | {error, string()} when
   Adapter :: #eu_mysql{},
   Version :: version(),
   Table :: table(),

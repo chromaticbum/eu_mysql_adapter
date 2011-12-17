@@ -173,14 +173,14 @@ mysql_pool_name(
   list_to_atom(lists:concat(["eu_mysql_", Database, "_pool"])).
 
 
--spec version(Pid) -> Version when
+-spec version(Pid) -> Version | {error, string()} when
   Pid :: atom(),
   Version :: version().
 version(Pid) ->
   gen_server:call(Pid, version).
 
 
--spec store_instruction(Pid, Migration, Instruction) -> ok when
+-spec store_instruction(Pid, Migration, Instruction) -> ok | {error, string()} when
   Pid :: pid(),
   Migration :: migration(),
   Instruction :: migration_instruction().
@@ -188,7 +188,7 @@ store_instruction(Pid, Migration, Instruction) ->
   gen_server:call(Pid, {store_instruction, Migration, Instruction}).
 
 
--spec delete_instruction(Pid, Migration, Instruction) -> ok when
+-spec delete_instruction(Pid, Migration, Instruction) -> ok | {error, string()} when
   Pid :: pid(),
   Migration :: migration(),
   Instruction :: migration_instruction().
@@ -196,7 +196,7 @@ delete_instruction(Pid, Migration, Instruction) ->
   gen_server:call(Pid, {delete_instruction, Migration, Instruction}).
 
 
--spec create_table(Pid, Table, Columns) -> ok when
+-spec create_table(Pid, Table, Columns) -> ok | {error, string()} when
   Pid :: pid(),
   Table :: atom(),
   Columns :: columns().
@@ -204,14 +204,14 @@ create_table(Pid, Table, Columns) ->
   gen_server:call(Pid, {create_table, Table, Columns}).
 
 
--spec drop_table(Pid, Table) -> ok when
+-spec drop_table(Pid, Table) -> ok | {error, string()} when
   Pid :: pid(),
   Table :: table().
 drop_table(Pid, Table) ->
   gen_server:call(Pid, {drop_table, Table}).
 
 
--spec add_column(Pid, Table, Column) -> ok when
+-spec add_column(Pid, Table, Column) -> ok | {error, string()} when
   Pid :: pid(),
   Table :: atom(),
   Column :: column().
@@ -219,7 +219,7 @@ add_column(Pid, Table, Column) ->
   gen_server:call(Pid, {add_column, Table, Column}).
 
 
--spec drop_column(Pid, Table, Column) -> ok when
+-spec drop_column(Pid, Table, Column) -> ok | {error, string()} when
   Pid :: pid(),
   Table :: table(),
   Column :: column_name().
@@ -227,7 +227,7 @@ drop_column(Pid, Table, Column) ->
   gen_server:call(Pid, {drop_column, Table, Column}).
 
 
--spec restore_table_instructions(Pid, Version, Table) -> migration_instructions() when
+-spec restore_table_instructions(Pid, Version, Table) -> migration_instructions() | {error, string()} when
   Pid :: pid(),
   Version :: version(),
   Table :: table().
@@ -235,7 +235,7 @@ restore_table_instructions(Pid, Version, Table) ->
   gen_server:call(Pid, {restore_table_instructions, Version, Table}).
 
 
--spec restore_column_instruction(Pid, Version, Table, Column) -> migration_instruction() when
+-spec restore_column_instruction(Pid, Version, Table, Column) -> migration_instruction() | {error, string()} when
   Pid :: pid(),
   Version :: version(),
   Table :: table(),
@@ -244,66 +244,74 @@ restore_column_instruction(Pid, Version, Table, Column) ->
   gen_server:call(Pid, {restore_column_instruction, Version, Table, Column}).
 
 
-handle_call(version, _From, #state{pool = Pool} = State) ->
-  #result_packet{rows = Rows} = emysql:execute(Pool, migration_version, []),
+handle_call(version, _From, State) ->
+  execute(
+    fun(#result_packet{rows = Rows}) ->
+        case Rows of
+          [[Version]] -> binary_to_list(Version);
+          [] -> ""
+        end
+    end, State, migration_version, []
+  );
 
-  case Rows of
-    [[Version]] -> {reply, binary_to_list(Version), State};
-    [] -> {reply, "", State}
-  end;
-
-handle_call({store_instruction, Migration, Instruction}, _From, #state{pool = Pool} = State) ->
+handle_call({store_instruction, Migration, Instruction}, _From, State) ->
   #migration{
     version = Version,
     file = File
   } = Migration,
   {Table, Column, Instruction2} = extract_instruction(Instruction),
-  emysql:execute(Pool, store_instruction, [Version, File, Table, Column, lists:concat([Instruction2, "."])]),
-  {reply, ok, State};
+  execute(ok, State, store_instruction, [Version, File, Table, Column, lists:concat([Instruction2, "."])]);
 
-handle_call({delete_instruction, Migration, Instruction}, _From, #state{pool = Pool} = State) ->
+handle_call({delete_instruction, Migration, Instruction}, _From, State) ->
   #migration{
     version = Version,
     file = File
   } = Migration,
   {Table, Column, _Instruction} = extract_instruction(Instruction),
-  emysql:execute(Pool, delete_instruction, [Version, File, Table, Column]),
-  {reply, ok, State};
+  execute(ok, State, delete_instruction, [Version, File, Table, Column]);
 
-handle_call({create_table, Table, Columns}, _From, #state{pool = Pool} = State) ->
-  emysql:execute(Pool, eu_mysql_util:create_table_sql(Table, Columns)),
-  {reply, ok, State};
+handle_call({create_table, Table, Columns}, _From, State) ->
+  execute(ok, State, eu_mysql_util:create_table_sql(Table, Columns), []);
 
-handle_call({drop_table, Table}, _From, #state{pool = Pool} = State) ->
-  emysql:execute(Pool, eu_mysql_util:drop_table_sql(Table)),
-  {reply, ok, State};
+handle_call({drop_table, Table}, _From, State) ->
+  execute(ok, State, eu_mysql_util:drop_table_sql(Table), []);
 
-handle_call({add_column, Table, Column}, _From, #state{pool = Pool} = State) ->
-  emysql:execute(Pool, eu_mysql_util:add_column_sql(Table, Column)),
-  {reply, ok, State};
+handle_call({add_column, Table, Column}, _From, State) ->
+  execute(ok, State, eu_mysql_util:add_column_sql(Table, Column), []);
 
-handle_call({drop_column, Table, Column}, _From, #state{pool = Pool} = State) ->
-  emysql:execute(Pool, eu_mysql_util:drop_column_sql(Table, Column)),
-  {reply, ok, State};
+handle_call({drop_column, Table, Column}, _From, State) ->
+  execute(ok, State, eu_mysql_util:drop_column_sql(Table, Column), []);
 
-handle_call({restore_table_instructions, Version, Table}, _From, #state{pool = Pool} = State) ->
-  #result_packet{rows = Rows} = emysql:execute(Pool, restore_table_instructions, [Version, Table]),
-  {reply, encode_instruction_rows(Rows), State};
+handle_call({restore_table_instructions, Version, Table}, _From, State) ->
+  execute(
+    fun(#result_packet{rows = Rows}) -> encode_instruction_rows(Rows) end,
+    State, restore_table_instructions, [Version, Table]
+  );
 
-handle_call({restore_column_instruction, Version, Table, Column}, _From, #state{pool = Pool} = State) ->
-  #result_packet{rows = [[Row]]} = emysql:execute(Pool, restore_column_instruction, [Version, Table, Column]),
-  {reply, encode_term(Row), State};
+handle_call({restore_column_instruction, Version, Table, Column}, _From, State) ->
+  execute(
+    fun(#result_packet{rows = [[Row]]}) -> encode_term(Row) end,
+    State, restore_column_instruction, [Version, Table, Column]
+  );
 
 handle_call(stop, _From, #state{pool = Pool} = State) ->
   emysql:remove_pool(Pool),
-  {stop, normal, ok, State};
-
-handle_call(_Data, _From, State) ->
-  {reply, ok, State}.
+  {stop, normal, ok, State}.
 
 
 encode_instruction_rows(Rows) ->
   lists:map(fun([Row]) -> encode_term(Row) end, Rows).
+
+
+execute(ok, State, Query, Vars) ->
+  execute(fun(_) -> ok end, State, Query, Vars);
+execute(Fun, #state{pool = Pool} = State, Query, Vars) ->
+  Result = emysql:execute(Pool, Query, Vars),
+  case Result of
+    #error_packet{msg = Reason} -> {reply, {error, Reason}, State};
+    #ok_packet{} -> {reply, Fun(Result), State};
+    #result_packet{} -> {reply, Fun(Result), State}
+  end.
 
 
 encode_term(Term) ->
