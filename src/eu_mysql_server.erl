@@ -23,6 +23,8 @@
 -export([
     version/1,
     store_instruction/3,
+    delete_instruction/3,
+
     create_table/3,
     drop_table/2,
     add_column/3,
@@ -182,6 +184,15 @@ version(Pid) ->
 store_instruction(Pid, Migration, Instruction) ->
   gen_server:call(Pid, {store_instruction, Migration, Instruction}).
 
+
+-spec delete_instruction(Pid, Migration, Instruction) -> ok when
+  Pid :: pid(),
+  Migration :: migration(),
+  Instruction :: migration_instruction().
+delete_instruction(Pid, Migration, Instruction) ->
+  gen_server:call(Pid, {delete_instruction, Migration, Instruction}).
+
+
 -spec create_table(Pid, Table, Columns) -> ok when
   Pid :: pid(),
   Table :: atom(),
@@ -230,6 +241,15 @@ handle_call({store_instruction, Migration, Instruction}, _From, #state{pool = Po
   emysql:execute(Pool, store_instruction, [Version, File, Table, Column, Instruction2]),
   {reply, ok, State};
 
+handle_call({delete_instruction, Migration, Instruction}, _From, #state{pool = Pool} = State) ->
+  #migration{
+    version = Version,
+    file = File
+  } = Migration,
+  {Table, Column} = extract_instruction(Instruction),
+  emysql:execute(Pool, delete_instruction, [Version, File, Table, Column]),
+  {reply, ok, State};
+
 handle_call({create_table, Table, Columns}, _From, #state{pool = Pool} = State) ->
   emysql:execute(Pool, eu_mysql_util:create_table_sql(Table, Columns)),
   {reply, ok, State};
@@ -253,7 +273,8 @@ handle_call(stop, _From, #state{pool = Pool} = State) ->
 handle_call(_Data, _From, State) ->
   {reply, ok, State}.
 
--spec extract_instruction(Instruction) -> {string(), string(), string()} when
+
+-spec extract_instruction(Instruction) -> {string(), string() | undefined, string()} when
   Instruction :: migration_instruction().
 extract_instruction({create_table, Table, _Columns} = Instruction) ->
   {atom_to_list(Table), undefined, convert_term(Instruction)};

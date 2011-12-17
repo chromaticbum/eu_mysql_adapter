@@ -9,6 +9,8 @@
     stop/1,
     version/1,
     store_instruction/3,
+    delete_instruction/3,
+
     create_table/3,
     drop_table/2,
     add_column/3,
@@ -62,6 +64,14 @@ version(#eu_mysql{pid = Pid}) ->
   Instruction :: migration_instruction().
 store_instruction(#eu_mysql{pid = Pid}, Migration, Instruction) ->
   eu_mysql_server:store_instruction(Pid, Migration, Instruction).
+
+
+-spec delete_instruction(Adapter, Migration, Instruction) -> ok when
+  Adapter :: #eu_mysql{},
+  Migration :: migration(),
+  Instruction :: migration_instruction().
+delete_instruction(#eu_mysql{pid = Pid}, Migration, Instruction) ->
+  eu_mysql_server:delete_instruction(Pid, Migration, Instruction).
 
 
 -spec create_table(Adapter, Table, Columns) -> ok when
