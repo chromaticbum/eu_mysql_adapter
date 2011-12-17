@@ -30,7 +30,8 @@
     add_column/3,
     drop_column/3,
 
-    restore_table_instructions/3
+    restore_table_instructions/3,
+    restore_column_instruction/4
   ]).
 
 -record(state, {
@@ -234,6 +235,15 @@ restore_table_instructions(Pid, Version, Table) ->
   gen_server:call(Pid, {restore_table_instructions, Version, Table}).
 
 
+-spec restore_column_instruction(Pid, Version, Table, Column) -> term() when
+  Pid :: pid(),
+  Version :: version(),
+  Table :: table(),
+  Column :: column_name().
+restore_column_instruction(Pid, Version, Table, Column) ->
+  gen_server:call(Pid, {restore_column_instruction, Version, Table, Column}).
+
+
 handle_call(version, _From, #state{pool = Pool} = State) ->
   #result_packet{rows = Rows} = emysql:execute(Pool, migration_version, []),
 
@@ -280,6 +290,10 @@ handle_call({restore_table_instructions, Version, Table}, _From, #state{pool = P
   #result_packet{rows = Rows} = emysql:execute(Pool, restore_table_instructions, [Version, Table]),
   {reply, encode_instruction_rows(Rows), State};
 
+handle_call({restore_column_instruction, Version, Table, Column}, _From, #state{pool = Pool} = State) ->
+  #result_packet{rows = [[Row]]} = emysql:execute(Pool, restore_column_instruction, [Version, Table, Column]),
+  {reply, encode_term(Row), State};
+
 handle_call(stop, _From, #state{pool = Pool} = State) ->
   emysql:remove_pool(Pool),
   {stop, normal, ok, State};
@@ -293,9 +307,9 @@ encode_instruction_rows(Rows) ->
 
 
 encode_term(Term) ->
-  {ok, Tokens, _} = erl_scan:string(Term),
-  {ok, Term} = erl_parse:parse_term(Tokens),
-  Term.
+  {ok, Tokens, _} = erl_scan:string(binary_to_list(Term)),
+  {ok, Term2} = erl_parse:parse_term(Tokens),
+  Term2.
 
 
 -spec extract_instruction(Instruction) -> {string(), string(), string()} when
@@ -307,6 +321,10 @@ extract_instruction({drop_table, Table} = Instruction) ->
 extract_instruction({add_column, Table, Column} = Instruction) ->
   {atom_to_list(Table), atom_to_list(element(1, Column)), convert_term(Instruction)};
 extract_instruction({drop_column, Table, Column} = Instruction) ->
+  {atom_to_list(Table), atom_to_list(Column), convert_term(Instruction)};
+extract_instruction({restore_table, Table} = Instruction) ->
+  {atom_to_list(Table), "", convert_term(Instruction)};
+extract_instruction({restore_column, Table, Column} = Instruction) ->
   {atom_to_list(Table), atom_to_list(Column), convert_term(Instruction)}.
 
 
