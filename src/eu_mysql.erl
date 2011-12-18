@@ -1,4 +1,5 @@
 -module(eu_mysql).
+-behavior(eu_adapter).
 
 -include_lib("eulogy/include/eulogy.hrl").
 -include("eu_mysql_adapter.hrl").

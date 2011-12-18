@@ -4,7 +4,7 @@
     {vsn, "0.0.1"},
     {modules, [eu_mysql_adapter, eu_mysql_adapter_sup]},
     {registered, []},
-    {applications, [kernel, stdlib, emysql]},
+    {applications, [kernel, stdlib, emysql, eulogy]},
     {env, []},
     {mod, {eu_mysql_adapter_app, []}}
   ]}.
